@@ -2,10 +2,26 @@
 //
 
 #include <iostream>
+#include <filesystem>
 
-int main()
-{
-    std::cout << "Hello World!\n";
+using namespace std;
+
+int main() {
+	filesystem::path pathToDir = "C:\\";
+	filesystem::directory_iterator dirIterator(pathToDir);
+
+	for (const auto& entry : dirIterator) {
+		if (entry.is_directory()) {
+			cout << "Directory: ";
+		}
+		else {
+			cout << "File: ";
+		}
+
+		cout << entry.path().filename() << endl;
+	}
+
+	return 0;
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
