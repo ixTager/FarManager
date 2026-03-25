@@ -11,16 +11,20 @@ using namespace filesystem;
 
 
 int main() {
-	int strMainNumber = 3;
+	int strMainNumber = 2;
 	int breakerMain = 1;
 
+	path currentPath = current_path();
+
 	while (breakerMain) {
-		int n = 3;
-		path currentPath = current_path();
 		directory_iterator dirIterator(currentPath);
+		int n = 3;
 
 		cout << currentPath << endl;
-		cout << ".." << endl;
+		cout << "..";
+
+		if (strMainNumber == 2) cout << "\t<--" << endl;
+		else cout << endl;
 
 		for (const auto& entry : dirIterator) {
 			if (entry.is_directory()) {
@@ -35,6 +39,8 @@ int main() {
 				cout << entry.path().filename() << endl;
 			}
 
+
+
 			n++;
 		}
 
@@ -44,23 +50,38 @@ int main() {
 			switch (key) {
 				// Вниз
 			case 80:
-				strMainNumber++;
+				if (strMainNumber < n) strMainNumber++;
+				else strMainNumber = 2;
 				break;
 				// Вверх
 			case 72:
-				strMainNumber--;
+				if (strMainNumber > 1) strMainNumber--;
+				else strMainNumber = n;
 				break;
 			}
 		}
 
-		else if (key == 13){
-			breakerMain = 0;
+		else {
+			switch (key) {
+			// ESC
+			case 27:
+				breakerMain = 0;
+				break;
+			// Enter
+			case 13:
+				if (strMainNumber == 2) {
+					path newPath = currentPath.parent_path();
+					currentPath = newPath;
+					break;
+
+				}
+			}
 		}
+		
 
 		system("cls");
 	}
 	
-
 
 	return 0;
 }
