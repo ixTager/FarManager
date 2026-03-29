@@ -5,65 +5,111 @@
 #include <stdio.h>
 #include <windows.h>
 #include <conio.h>
+#include <direct.h>
 
 using namespace std;
 
 
+char newDir[260];
 
-void openDir(const char* path) {
+int nForSave = -1;
+
+int openDir(int strMain) {
+    int strDirNumber = 0;
     WIN32_FIND_DATAA findData;
     HANDLE hFind;
 
-    hFind = FindFirstFileA(path, &findData);
+    // Получение актуального пути
+    char cwd[260];
+    _getcwd(cwd, 260);
 
-    printf("%s\n", path);
-       
-    do {
-        if (lstrcmpA(findData.cFileName, ".") == 0 ||
-            lstrcmpA(findData.cFileName, "..") == 0) {
-            continue;
-        }
+    hFind = FindFirstFileA("*", &findData);
+    
+    if (hFind == INVALID_HANDLE_VALUE) {
+        cout << "Ошибка открытия директории";
+    }
+    else {
+        printf("%s\n", cwd);
+        cout << "..";
+        if (strDirNumber == strMain) printf("\t<--\n");
+        else printf("\n");
 
-        if (findData.dwFileAttributes) {
-            printf("/%s\n", findData.cFileName);
-        }
-        else {
-            printf("%s\n", findData.cFileName);
-        }
+        strDirNumber++;
 
-    } while (FindNextFileA(hFind, &findData));
+        do {
+            if (strcmp(findData.cFileName, ".") == 0 || strcmp(findData.cFileName, "..") == 0) {
+                continue;
+            }
 
-    FindClose(hFind);
+            // Проверка на каталог и сам вывод
+            if ((findData.dwFileAttributes) & FILE_ATTRIBUTE_DIRECTORY) {
+                if (strDirNumber == nForSave) {
+                    _chdir(findData.cFileName);
+                    nForSave = -1;
+                    return strDirNumber;
+                }
+                else {
+                    printf("/%s", findData.cFileName);
+                    if (strDirNumber == strMain) {
+                        printf("\t<--\n");
+                    }
+                    else printf("\n");
+                }
+            }
+            else {
+                printf("%s", findData.cFileName);
+                if (strDirNumber == strMain) printf("\t<--\n");
+                else printf("\n");
+            }
+            strDirNumber++;
+        } while (FindNextFileA(hFind, &findData));
+
+        FindClose(hFind);
+        return strDirNumber;
+    }
+
 }
 
 int main() {
     int breakerMain = 1;
-    int strMainNumber = 2;
+    int strMainNumber = 0;
 
-    while (breakerMain) {
-        openDir("C:\\Users\\levic\\OneDrive\\Desktop\\qwerty\\**");
-        int key = _getch();
-        if (key == 0 || key == 224) {
-            key = _getch();
+    int workingDir = _chdir("C:\\Users\\levic\\OneDrive\\Desktop\\qwerty\\");
+    if (workingDir == -1) cout << "Ошибка в выборе рабочего каталога";
+    else {
+        while (breakerMain) {
+            int maxFiles = openDir(strMainNumber);
+            int key = _getch();
+            if (key == 0 || key == 224) {
+                key = _getch();
+            }
+            switch (key) {
+                // Вниз
+            case 80:
+                strMainNumber++;
+                break;
+                // Вверх
+            case 72:
+                strMainNumber--;
+                break;
+                // Esc
+            case 27:
+                breakerMain = 0;
+                break;
+                // Enter
+            case 13:
+                if (strMainNumber == 0) _chdir("..");
+                else {
+                    nForSave = strMainNumber;
+                    strMainNumber = 0;
+                }
+                break;
+            }
+            if (strMainNumber < 0) strMainNumber = 0;
+            else if (strMainNumber >= maxFiles) strMainNumber = maxFiles - 1;
+            system("cls");
         }
-        switch (key) {
-            // Вниз
-        case 80:
-            strMainNumber++;
-            break;
-            // Вверх
-        case 72:
-            strMainNumber--;
-            break;
-            // Esc
-        case 27:
-            breakerMain = 0;
-            break;
-            // Enter
-        case 13:
-            break;
-        }
-        system("cls");
+
     }
 
 	return 0;
