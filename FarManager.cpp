@@ -2,6 +2,7 @@
 //
 
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <windows.h>
 #include <conio.h>
@@ -14,6 +15,70 @@ char cwd[260];
 char newDir[260];
 
 int nForSave = -1;
+int nForDelete = -1;
+
+int deleteFile(char* path) {
+    return DeleteFileA(path);
+}
+
+int deleteDirectory(char* path) {
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind;
+
+    // Получение актуального пути
+    char searchedPath[520];
+    sprintf_s(searchedPath, "%s\\*", path);
+    hFind = FindFirstFileA(searchedPath, &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        cout << "Ошибка открытия директории";
+        return -1;
+    }
+    else {
+        do {
+            char fullPath[520];
+
+            if (strcmp(findData.cFileName, ".") == 0 || strcmp(findData.cFileName, "..") == 0) {
+                continue;
+            }
+
+            sprintf_s(fullPath, "%s\\%s", path, findData.cFileName);
+
+            if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                deleteDirectory(fullPath);
+            }
+
+            // Если файл
+            else {
+                deleteFile(fullPath);
+            }
+        } while (FindNextFileA(hFind, &findData));
+
+        FindClose(hFind);
+
+        RemoveDirectoryA(path);
+    }
+    return 0;
+}
+
+void createFile(char* path) {
+    char newFile[260];
+
+    printf("Введите имя файла: ");
+    scanf_s("%s", newFile, (unsigned)_countof(newFile));
+
+    char fullPath[520];
+    sprintf_s(fullPath, "%s\\%s", path, newFile);
+
+    ofstream file(fullPath);
+
+    if (!file) {
+        printf("Ошибка создания файла\n");
+        return;
+    }
+
+    file.close();
+}
 
 int createFolder(char* path){
     // Ввод имени для папки
@@ -62,6 +127,11 @@ int openDir(char* actualDir, int strMain) {
                     _chdir(findData.cFileName);
                     nForSave = -1;
                     return strDirNumber;
+                }
+                else if (strDirNumber == nForDelete) {
+                    char fullPath[520];
+                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
+                    deleteDirectory(fullPath);
                 }
                 else {
                     printf("/%s", findData.cFileName);
@@ -121,9 +191,16 @@ int main() {
                     strMainNumber = 0;
                 }
                 break;
-                // F7 - создание директории
+                // F7 - создание директории || Shist + F7 - создание файла
             case 65:
                 statusError = createFolder(workingDir);
+                break;
+                // F8 - удаление папки / файла
+            case 66:
+                if (strMainNumber != 0){
+                    nForDelete = strMainNumber;
+                    strMainNumber = 0;
+                }
                 break;
             }
             if (statusError == -1) break;
