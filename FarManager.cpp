@@ -9,19 +9,34 @@
 
 using namespace std;
 
-
+// Переменные для хранения пути
+char cwd[260];
 char newDir[260];
 
 int nForSave = -1;
 
-int openDir(int strMain) {
+int createFolder(char* path){
+    // Ввод имени для папки
+    char newFolder[260];
+    printf("Введите название для папки: ");
+    scanf_s("%s", newFolder, (unsigned)_countof(newFolder));
+
+    char fullPath[520];
+    sprintf_s(fullPath, "%s\\%s", path, newFolder);
+
+    int result = _mkdir(fullPath);
+    if (result == -1) {
+        cout << "Ошбика при создании директории" << endl;
+    }
+    return result;
+}
+
+int openDir(char* actualDir, int strMain) {
     int strDirNumber = 0;
     WIN32_FIND_DATAA findData;
     HANDLE hFind;
 
     // Получение актуального пути
-    char cwd[260];
-    _getcwd(cwd, 260);
 
     hFind = FindFirstFileA("*", &findData);
     
@@ -73,12 +88,14 @@ int openDir(int strMain) {
 int main() {
     int breakerMain = 1;
     int strMainNumber = 0;
+    int statusError = 0;
 
-    int workingDir = _chdir("C:\\Users\\levic\\OneDrive\\Desktop\\qwerty\\");
-    if (workingDir == -1) cout << "Ошибка в выборе рабочего каталога";
+    char* workingDir = _getcwd(cwd, 260);
+    if (workingDir == NULL) cout << "Ошибка в выборе рабочего каталога";
     else {
         while (breakerMain) {
-            int maxFiles = openDir(strMainNumber);
+            workingDir = _getcwd(cwd, 260);
+            int maxFiles = openDir(workingDir, strMainNumber);
             int key = _getch();
             if (key == 0 || key == 224) {
                 key = _getch();
@@ -104,7 +121,12 @@ int main() {
                     strMainNumber = 0;
                 }
                 break;
+                // F7 - создание директории
+            case 65:
+                statusError = createFolder(workingDir);
+                break;
             }
+            if (statusError == -1) break;
             if (strMainNumber < 0) strMainNumber = 0;
             else if (strMainNumber >= maxFiles) strMainNumber = maxFiles - 1;
             system("cls");
