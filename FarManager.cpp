@@ -45,6 +45,7 @@ int showFile(char* path) {
             fwrite(buffer, 1, byteRead, stdout);
         }
         fclose(file);
+        printf("\nНажмите ESC, чтобы выйти из файла..");
         int key = _getch();
         while (key != 27) {
             key = _getch();
@@ -168,6 +169,7 @@ int openDir(char* actualDir, int strMain) {
                 else if (strDirNumber == nForDelete) {
                     sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
                     deleteDirectory(fullPath);
+                    nForDelete = -1;
                 }
                 else {
                     printf("/%s", findData.cFileName);
@@ -178,11 +180,20 @@ int openDir(char* actualDir, int strMain) {
                 }
             }
             else {
+                if (strDirNumber == nForDelete) {
+                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
+                    statusError = deleteFile(fullPath);
+                    nForDelete = -1;
+                    strDirNumber++;
+                    continue;
+                }
+
                 if (strDirNumber != nForShow) {
                     printf("%s", findData.cFileName);
                     if (strDirNumber == strMain) printf("\t<--\n");
                     else printf("\n");
                 }
+
                 else {
                     sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
                     statusError = showFile(fullPath);
@@ -235,14 +246,6 @@ int main() {
                         strMainNumber = 0;
                     }
                     break;
-                    // F4 
-                case 62:
-                    // Проверяем, зажат ли SHIFT
-                    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-                        printf("Shift + F4 нажаты\n");
-                        createFile(workingDir);
-                    }
-                    break;
                     // F3
                 case 61:
                     if (strMainNumber != 0) nForShow = strMainNumber;
@@ -264,6 +267,9 @@ int main() {
                     }
                     break;
                 }
+            }
+            if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000)) {
+                createFile(workingDir);
             }
 
             if (statusError == -1) break;
