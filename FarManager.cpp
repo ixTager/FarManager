@@ -16,7 +16,42 @@ char newDir[260];
 
 int nForSave = -1;
 int nForDelete = -1;
+int nForShow = -1;
 
+int statusError = 0;
+
+
+void showFunction() {
+    cout << endl << "F8 - удалить файл / директорию" << endl;
+    cout << "F7 - создать директорию" << endl;
+    cout << "SHIFT + F4 - создать файл" << endl;
+    cout << "F3 - показ файла в консоли" << endl;
+}
+
+
+int showFile(char* path) {
+    FILE* file = nullptr;
+    errno_t err = fopen_s(&file, path, "rb");
+
+    if (err != 0 || !file) {
+        printf("Ошбика показа файла");
+        return -1;
+    }
+    else {
+        char buffer[1024];
+        size_t byteRead;
+        system("cls");
+        while ((byteRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+            fwrite(buffer, 1, byteRead, stdout);
+        }
+        fclose(file);
+        int key = _getch();
+        while (key != 27) {
+            key = _getch();
+        }
+        return 0;
+    }
+}
 int deleteFile(char* path) {
     return DeleteFileA(path);
 }
@@ -70,20 +105,21 @@ void createFile(char* path) {
     char fullPath[520];
     sprintf_s(fullPath, "%s\\%s", path, newFile);
 
-    ofstream file(fullPath);
+    FILE* file = nullptr;
+    errno_t err = fopen_s(&file, fullPath, "w");
 
-    if (!file) {
+    if (err != 0 || !file) {
         printf("Ошибка создания файла\n");
         return;
     }
 
-    file.close();
+    fclose(file);
 }
 
 int createFolder(char* path){
     // Ввод имени для папки
     char newFolder[260];
-    printf("Введите название для папки: ");
+    printf("\nВведите название для папки: ");
     scanf_s("%s", newFolder, (unsigned)_countof(newFolder));
 
     char fullPath[520];
@@ -97,6 +133,7 @@ int createFolder(char* path){
 }
 
 int openDir(char* actualDir, int strMain) {
+    char fullPath[520];
     int strDirNumber = 0;
     WIN32_FIND_DATAA findData;
     HANDLE hFind;
@@ -126,10 +163,9 @@ int openDir(char* actualDir, int strMain) {
                 if (strDirNumber == nForSave) {
                     _chdir(findData.cFileName);
                     nForSave = -1;
-                    return strDirNumber;
+                    openDir(cwd, strMain);
                 }
                 else if (strDirNumber == nForDelete) {
-                    char fullPath[520];
                     sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
                     deleteDirectory(fullPath);
                 }
@@ -142,14 +178,22 @@ int openDir(char* actualDir, int strMain) {
                 }
             }
             else {
-                printf("%s", findData.cFileName);
-                if (strDirNumber == strMain) printf("\t<--\n");
-                else printf("\n");
+                if (strDirNumber != nForShow) {
+                    printf("%s", findData.cFileName);
+                    if (strDirNumber == strMain) printf("\t<--\n");
+                    else printf("\n");
+                }
+                else {
+                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
+                    statusError = showFile(fullPath);
+                    nForShow = -1;
+                }
             }
             strDirNumber++;
         } while (FindNextFileA(hFind, &findData));
-
+        
         FindClose(hFind);
+        showFunction();
         return strDirNumber;
     }
 
@@ -158,7 +202,6 @@ int openDir(char* actualDir, int strMain) {
 int main() {
     int breakerMain = 1;
     int strMainNumber = 0;
-    int statusError = 0;
 
     char* workingDir = _getcwd(cwd, 260);
     if (workingDir == NULL) cout << "Ошибка в выборе рабочего каталога";
@@ -167,50 +210,68 @@ int main() {
             workingDir = _getcwd(cwd, 260);
             int maxFiles = openDir(workingDir, strMainNumber);
             int key = _getch();
+
+            // Обработка расширенных клавиш
             if (key == 0 || key == 224) {
                 key = _getch();
-            }
-            switch (key) {
-                // Вниз
-            case 80:
-                strMainNumber++;
-                break;
-                // Вверх
-            case 72:
-                strMainNumber--;
-                break;
-                // Esc
-            case 27:
-                breakerMain = 0;
-                break;
-                // Enter
-            case 13:
-                if (strMainNumber == 0) _chdir("..");
-                else {
-                    nForSave = strMainNumber;
-                    strMainNumber = 0;
+
+                switch (key) {
+                    // Стрелка вниз
+                case 80:
+                    strMainNumber++;
+                    break;
+                    // Стрелка вверх
+                case 72:
+                    strMainNumber--;
+                    break;
+                    // F7
+                case 65:
+                    statusError = createFolder(workingDir);
+                    break;
+                    // F8
+                case 66:
+                    if (strMainNumber != 0) {
+                        nForDelete = strMainNumber;
+                        strMainNumber = 0;
+                    }
+                    break;
+                    // F4 
+                case 62:
+                    // Проверяем, зажат ли SHIFT
+                    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
+                        printf("Shift + F4 нажаты\n");
+                        createFile(workingDir);
+                    }
+                    break;
+                    // F3
+                case 61:
+                    if (strMainNumber != 0) nForShow = strMainNumber;
+                    break;
                 }
-                break;
-                // F7 - создание директории || Shist + F7 - создание файла
-            case 65:
-                statusError = createFolder(workingDir);
-                break;
-                // F8 - удаление папки / файла
-            case 66:
-                if (strMainNumber != 0){
-                    nForDelete = strMainNumber;
-                    strMainNumber = 0;
-                }
-                break;
             }
+            else {
+                switch (key) {
+                    // Esc
+                case 27:
+                    breakerMain = 0;
+                    break;
+                    // Enter
+                case 13:
+                    if (strMainNumber == 0) _chdir("..");
+                    else {
+                        nForSave = strMainNumber;
+                        strMainNumber = 0;
+                    }
+                    break;
+                }
+            }
+
             if (statusError == -1) break;
             if (strMainNumber < 0) strMainNumber = 0;
-            else if (strMainNumber >= maxFiles) strMainNumber = maxFiles - 1;
+            else if (strMainNumber >= maxFiles && maxFiles > 0) strMainNumber = maxFiles - 1;
             system("cls");
         }
-
     }
 
-	return 0;
+    return 0;
 }
-
