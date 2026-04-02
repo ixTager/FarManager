@@ -20,6 +20,12 @@ int nForShow = -1;
 
 int statusError = 0;
 
+char* workingDir1;
+char* workingDir2;
+
+char cwd1[260];
+char cwd2[260];
+
 
 void showFunction() {
     cout << endl << "F8 - удалить файл / директорию" << endl;
@@ -133,93 +139,138 @@ int createFolder(char* path){
     return result;
 }
 
-int openDir(char* actualDir, int strMain) {
+int openDirs(int strMain, int currentWindow) {
     char fullPath[520];
+    char path1[520];
+    char path2[520];
+    char newPath[520];
+
     int strDirNumber = 0;
-    WIN32_FIND_DATAA findData;
-    HANDLE hFind;
 
-    // Получение актуального пути
+    WIN32_FIND_DATAA findData1;
+    WIN32_FIND_DATAA findData2;
 
-    hFind = FindFirstFileA("*", &findData);
-    
-    if (hFind == INVALID_HANDLE_VALUE) {
+    HANDLE hFind1;
+    HANDLE hFind2;
+
+    sprintf_s(path1, "%s\\*", workingDir1);
+    sprintf_s(path2, "%s\\*", workingDir2);
+
+    // Получение хендлов для обоих каталогов
+    hFind1 = FindFirstFileA(path1, &findData1);
+    hFind2 = FindFirstFileA(path2, &findData2);
+
+    if (hFind1 == INVALID_HANDLE_VALUE || hFind2 == INVALID_HANDLE_VALUE) {
         cout << "Ошибка открытия директории";
+        return 0;
     }
-    else {
-        printf("%s\n", cwd);
-        cout << "..";
+
+    // Выводим заголовок с путями
+    printf("%.50s | %.50s\n", workingDir1, workingDir2);
+
+    cout << "..";
+    if (strDirNumber == strMain) printf("\t<--\n");
+    else printf("\n");
+    strDirNumber++;
+
+    // Получаем первый элемент для второго каталога
+    int hasNext1 = 1;
+    int hasNext2 = 2;
+
+    while (hasNext1 || hasNext2) {
+        // Пропускаем . и .. для первого каталога
+        if (hasNext1 && (strcmp(findData1.cFileName, ".") == 0 || strcmp(findData1.cFileName, "..") == 0)) {
+            hasNext1 = FindNextFileA(hFind1, &findData1);
+            continue;
+        }
+
+        // Пропускаем . и .. для второго каталога
+        if (hasNext2 && (strcmp(findData2.cFileName, ".") == 0 || strcmp(findData2.cFileName, "..") == 0)) {
+            hasNext2 = FindNextFileA(hFind2, &findData2);
+            continue;
+        }
+
+        // Выводим информацию о файлах/папках
+        char name1[100] = "";
+        char name2[100] = "";
+
+        if (hasNext1) {
+            strcpy_s(name1, findData1.cFileName);
+        }
+        else {
+            strcpy_s(name1, "");
+        }
+
+        if (hasNext2) {
+            strcpy_s(name2, findData2.cFileName);
+        }
+        else {
+            strcpy_s(name2, "");
+        }
+
+        // Проверка на каталог и обработка действий
+        if (hasNext1 && (findData1.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+            if (strDirNumber == nForSave) {
+                if (currentWindow == 1) {
+                    sprintf_s(cwd1, "%s\\%s", workingDir1, findData1.cFileName);
+                    workingDir1 = cwd1;
+                }
+                nForSave = -1;
+            }
+            else if (strDirNumber == nForDelete) {
+                if (currentWindow == 1) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                    deleteDirectory(fullPath);
+                }
+                nForDelete = -1;
+            }
+        }
+        else if (hasNext1) { // Это файл
+            if (strDirNumber == nForDelete) {
+                if (currentWindow == 1) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                    statusError = deleteFile(fullPath);
+                }
+                nForDelete = -1;
+            }
+
+            if (strDirNumber == nForShow) {
+                if (currentWindow == 1) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                    statusError = showFile(fullPath);
+                }
+                nForShow = -1;
+            }
+        }
+
+        printf("%-50s | %-50s", name1, name2);
         if (strDirNumber == strMain) printf("\t<--\n");
         else printf("\n");
 
         strDirNumber++;
 
-        do {
-            if (strcmp(findData.cFileName, ".") == 0 || strcmp(findData.cFileName, "..") == 0) {
-                continue;
-            }
-
-            // Проверка на каталог и сам вывод
-            if ((findData.dwFileAttributes) & FILE_ATTRIBUTE_DIRECTORY) {
-                if (strDirNumber == nForSave) {
-                    _chdir(findData.cFileName);
-                    nForSave = -1;
-                    openDir(cwd, strMain);
-                }
-                else if (strDirNumber == nForDelete) {
-                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
-                    deleteDirectory(fullPath);
-                    nForDelete = -1;
-                }
-                else {
-                    printf("/%s", findData.cFileName);
-                    if (strDirNumber == strMain) {
-                        printf("\t<--\n");
-                    }
-                    else printf("\n");
-                }
-            }
-            else {
-                if (strDirNumber == nForDelete) {
-                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
-                    statusError = deleteFile(fullPath);
-                    nForDelete = -1;
-                    strDirNumber++;
-                    continue;
-                }
-
-                if (strDirNumber != nForShow) {
-                    printf("%s", findData.cFileName);
-                    if (strDirNumber == strMain) printf("\t<--\n");
-                    else printf("\n");
-                }
-
-                else {
-                    sprintf_s(fullPath, "%s\\%s", cwd, findData.cFileName);
-                    statusError = showFile(fullPath);
-                    nForShow = -1;
-                }
-            }
-            strDirNumber++;
-        } while (FindNextFileA(hFind, &findData));
-        
-        FindClose(hFind);
-        showFunction();
-        return strDirNumber;
+        // Получаем следующие элементы
+        if (hasNext1) hasNext1 = FindNextFileA(hFind1, &findData1);
+        if (hasNext2) hasNext2 = FindNextFileA(hFind2, &findData2);
     }
 
+    FindClose(hFind1);
+    FindClose(hFind2);
+    showFunction();
+    return strDirNumber;
 }
 
 int main() {
     int breakerMain = 1;
     int strMainNumber = 0;
+    int currentWindow = 1;
 
-    char* workingDir = _getcwd(cwd, 260);
-    if (workingDir == NULL) cout << "Ошибка в выборе рабочего каталога";
+    workingDir1 = _getcwd(cwd1, 260);
+    workingDir2 = _getcwd(cwd2, 260);
+    if (workingDir1 == NULL || workingDir2 == NULL) cout << "Ошибка в выборе рабочего каталога";
     else {
         while (breakerMain) {
-            workingDir = _getcwd(cwd, 260);
-            int maxFiles = openDir(workingDir, strMainNumber);
+            int maxFiles = openDirs(strMainNumber, currentWindow);
             int key = _getch();
 
             // Обработка расширенных клавиш
@@ -237,7 +288,8 @@ int main() {
                     break;
                     // F7
                 case 65:
-                    statusError = createFolder(workingDir);
+                    if (currentWindow == 1) statusError = createFolder(workingDir1);
+                    else statusError = createFolder(workingDir2);
                     break;
                     // F8
                 case 66:
@@ -269,7 +321,8 @@ int main() {
                 }
             }
             if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000)) {
-                createFile(workingDir);
+                if (currentWindow == 1) createFile(workingDir1);
+                else createFile(workingDir2);
             }
 
             if (statusError == -1) break;
