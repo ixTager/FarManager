@@ -14,14 +14,19 @@ using namespace std;
 char cwd[260];
 char newDir[260];
 
-int nForSave = -1;
-int nForDelete = -1;
-int nForShow = -1;
+int nForSave1 = -1;
+int nForSave2 = -1;
+int nForDelete1 = -1;
+int nForDelete2 = -1;
+int nForShow1 = -1;
+int nForShow2 = -1;
 
 int statusError = 0;
 
-char* workingDir1;
-char* workingDir2;
+char workingDir1[260];
+char workingDir2[260];
+char oldWorkingDir1[260];
+char oldWorkingDir2[260];
 
 char cwd1[260];
 char cwd2[260];
@@ -123,7 +128,7 @@ void createFile(char* path) {
     fclose(file);
 }
 
-int createFolder(char* path){
+int createFolder(char* path) {
     // Ввод имени для папки
     char newFolder[260];
     printf("\nВведите название для папки: ");
@@ -139,11 +144,22 @@ int createFolder(char* path){
     return result;
 }
 
+void updateCurrentDirectory(int window) {
+    if (window == 1) {
+        _chdir(workingDir1);
+        _getcwd(workingDir1, 260);
+    }
+    else {
+        _chdir(workingDir2);
+        _getcwd(workingDir2, 260);
+    }
+}
+
+// Исправленная функция openDirs
 int openDirs(int strMain, int currentWindow) {
     char fullPath[520];
     char path1[520];
     char path2[520];
-    char newPath[520];
 
     int strDirNumber = 0;
 
@@ -153,10 +169,13 @@ int openDirs(int strMain, int currentWindow) {
     HANDLE hFind1;
     HANDLE hFind2;
 
+    // Обновляем пути перед отображением
+    updateCurrentDirectory(1);
+    updateCurrentDirectory(2);
+
     sprintf_s(path1, "%s\\*", workingDir1);
     sprintf_s(path2, "%s\\*", workingDir2);
 
-    // Получение хендлов для обоих каталогов
     hFind1 = FindFirstFileA(path1, &findData1);
     hFind2 = FindFirstFileA(path2, &findData2);
 
@@ -168,88 +187,109 @@ int openDirs(int strMain, int currentWindow) {
     // Выводим заголовок с путями
     printf("%.50s | %.50s\n", workingDir1, workingDir2);
 
-    cout << "..";
-    if (strDirNumber == strMain) printf("\t<--\n");
-    else printf("\n");
+    // Обработка ".." с индексом 0
+    if (currentWindow == 1 && strDirNumber == strMain)
+        printf("%-47s<-- | %-50s\n", "..", "..");
+    else if (currentWindow == 2 && strDirNumber == strMain)
+        printf("%-50s | %-47s<--\n", "..", "..");
+    else
+        printf("%-50s | %-50s\n", "..", "..");
     strDirNumber++;
 
-    // Получаем первый элемент для второго каталога
     int hasNext1 = 1;
-    int hasNext2 = 2;
+    int hasNext2 = 1;
 
     while (hasNext1 || hasNext2) {
         // Пропускаем . и .. для первого каталога
-        if (hasNext1 && (strcmp(findData1.cFileName, ".") == 0 || strcmp(findData1.cFileName, "..") == 0)) {
+        if (hasNext1 && (strcmp(findData1.cFileName, ".") == 0 ||
+            strcmp(findData1.cFileName, "..") == 0)) {
             hasNext1 = FindNextFileA(hFind1, &findData1);
             continue;
         }
 
         // Пропускаем . и .. для второго каталога
-        if (hasNext2 && (strcmp(findData2.cFileName, ".") == 0 || strcmp(findData2.cFileName, "..") == 0)) {
+        if (hasNext2 && (strcmp(findData2.cFileName, ".") == 0 ||
+            strcmp(findData2.cFileName, "..") == 0)) {
             hasNext2 = FindNextFileA(hFind2, &findData2);
             continue;
         }
 
-        // Выводим информацию о файлах/папках
         char name1[100] = "";
         char name2[100] = "";
 
         if (hasNext1) {
             strcpy_s(name1, findData1.cFileName);
         }
-        else {
-            strcpy_s(name1, "");
-        }
 
         if (hasNext2) {
             strcpy_s(name2, findData2.cFileName);
         }
-        else {
-            strcpy_s(name2, "");
-        }
 
-        // Проверка на каталог и обработка действий
+        // Обработка операций с файлами/папками
         if (hasNext1 && (findData1.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            if (strDirNumber == nForSave) {
-                if (currentWindow == 1) {
-                    sprintf_s(cwd1, "%s\\%s", workingDir1, findData1.cFileName);
-                    workingDir1 = cwd1;
+            if (currentWindow == 1) {
+                if (strDirNumber == nForSave1) {
+                    sprintf_s(workingDir1, "%s\\%s", workingDir1, findData1.cFileName);
+                    nForSave1 = -1;
                 }
-                nForSave = -1;
-            }
-            else if (strDirNumber == nForDelete) {
-                if (currentWindow == 1) {
+                else if (strDirNumber == nForDelete1) {
                     sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                     deleteDirectory(fullPath);
+                    nForDelete1 = -1;
                 }
-                nForDelete = -1;
+            }
+            else {
+                if (strDirNumber == nForSave2) {
+                    sprintf_s(workingDir2, "%s\\%s", workingDir2, findData2.cFileName);
+                    nForSave2 = -1;
+                }
+                else if (strDirNumber == nForDelete2) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                    deleteDirectory(fullPath);
+                    nForDelete2 = -1;
+                }
             }
         }
-        else if (hasNext1) { // Это файл
-            if (strDirNumber == nForDelete) {
-                if (currentWindow == 1) {
+        else if (hasNext1) {
+            if (currentWindow == 1) {
+                if (strDirNumber == nForDelete1) {
                     sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                     statusError = deleteFile(fullPath);
+                    nForDelete1 = -1;
                 }
-                nForDelete = -1;
-            }
-
-            if (strDirNumber == nForShow) {
-                if (currentWindow == 1) {
+                else if (strDirNumber == nForShow1) {
                     sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                     statusError = showFile(fullPath);
+                    nForShow1 = -1;
                 }
-                nForShow = -1;
+            }
+            else {
+                if (strDirNumber == nForDelete2) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                    deleteFile(fullPath);
+                    nForDelete2 = -1;
+                }
+                else if (strDirNumber == nForShow2) {
+                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                    statusError = showFile(fullPath);
+                    nForShow2 = -1;
+                }
             }
         }
 
-        printf("%-50s | %-50s", name1, name2);
-        if (strDirNumber == strMain) printf("\t<--\n");
-        else printf("\n");
+        // Вывод с подсветкой выбранной строки
+        if (strDirNumber == strMain) {
+            if (currentWindow == 1)
+                printf("%-47s\t<-- | %-50s\n", name1, name2);
+            else
+                printf("%-50s | %-47s\t<--\n", name1, name2);
+        }
+        else {
+            printf("%-50s | %-50s\n", name1, name2);
+        }
 
         strDirNumber++;
 
-        // Получаем следующие элементы
         if (hasNext1) hasNext1 = FindNextFileA(hFind1, &findData1);
         if (hasNext2) hasNext2 = FindNextFileA(hFind2, &findData2);
     }
@@ -259,77 +299,128 @@ int openDirs(int strMain, int currentWindow) {
     showFunction();
     return strDirNumber;
 }
-
 int main() {
+    int maxFiles;
     int breakerMain = 1;
-    int strMainNumber = 0;
+    int strMainNumber1 = 0;
+    int strMainNumber2 = 0;
     int currentWindow = 1;
 
-    workingDir1 = _getcwd(cwd1, 260);
-    workingDir2 = _getcwd(cwd2, 260);
-    if (workingDir1 == NULL || workingDir2 == NULL) cout << "Ошибка в выборе рабочего каталога";
-    else {
-        while (breakerMain) {
-            int maxFiles = openDirs(strMainNumber, currentWindow);
-            int key = _getch();
+    // Инициализация путей
+    _getcwd(workingDir1, 260);
+    strcpy_s(workingDir2, workingDir1);
 
-            // Обработка расширенных клавиш
-            if (key == 0 || key == 224) {
-                key = _getch();
+    while (breakerMain) {
+        if (currentWindow == 1)
+            maxFiles = openDirs(strMainNumber1, currentWindow);
+        else
+            maxFiles = openDirs(strMainNumber2, currentWindow);
 
-                switch (key) {
-                    // Стрелка вниз
-                case 80:
-                    strMainNumber++;
-                    break;
-                    // Стрелка вверх
-                case 72:
-                    strMainNumber--;
-                    break;
-                    // F7
-                case 65:
-                    if (currentWindow == 1) statusError = createFolder(workingDir1);
-                    else statusError = createFolder(workingDir2);
-                    break;
-                    // F8
-                case 66:
-                    if (strMainNumber != 0) {
-                        nForDelete = strMainNumber;
-                        strMainNumber = 0;
+        int key = _getch();
+
+        if (key == 0 || key == 224) {
+            key = _getch();
+            switch (key) {
+            case 80: // Вниз
+                if (currentWindow == 1)
+                    strMainNumber1++;
+                else
+                    strMainNumber2++;
+                break;
+            case 72: // Вверх
+                if (currentWindow == 1)
+                    strMainNumber1--;
+                else
+                    strMainNumber2--;
+                break;
+            case 65: // F7
+                if (currentWindow == 1)
+                    statusError = createFolder(workingDir1);
+                else
+                    statusError = createFolder(workingDir2);
+                break;
+            case 66: // F8
+                if (currentWindow == 1) {
+                    if (strMainNumber1 > 0) {
+                        nForDelete1 = strMainNumber1;
+                        strMainNumber1 = 0;
                     }
-                    break;
-                    // F3
-                case 61:
-                    if (strMainNumber != 0) nForShow = strMainNumber;
-                    break;
                 }
-            }
-            else {
-                switch (key) {
-                    // Esc
-                case 27:
-                    breakerMain = 0;
-                    break;
-                    // Enter
-                case 13:
-                    if (strMainNumber == 0) _chdir("..");
-                    else {
-                        nForSave = strMainNumber;
-                        strMainNumber = 0;
+                else {
+                    if (strMainNumber2 > 0) {
+                        nForDelete2 = strMainNumber2;
+                        strMainNumber2 = 0;
                     }
-                    break;
                 }
+                break;
+            case 61: // F3
+                if (currentWindow == 1) {
+                    if (strMainNumber1 > 0)
+                        nForShow1 = strMainNumber1;
+                }
+                else {
+                    if (strMainNumber2 > 0)
+                        nForShow2 = strMainNumber2;
+                }
+                break;
             }
-            if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000)) {
-                if (currentWindow == 1) createFile(workingDir1);
-                else createFile(workingDir2);
-            }
-
-            if (statusError == -1) break;
-            if (strMainNumber < 0) strMainNumber = 0;
-            else if (strMainNumber >= maxFiles && maxFiles > 0) strMainNumber = maxFiles - 1;
-            system("cls");
         }
+        else {
+            switch (key) {
+            case 27: // ESC
+                breakerMain = 0;
+                break;
+            case 13: // Enter
+                if (currentWindow == 1) {
+                    if (strMainNumber1 == 0) {
+                        // Переход на уровень выше
+                        char* lastSlash = strrchr(workingDir1, '\\');
+                        if (lastSlash != NULL) {
+                            *lastSlash = '\0';
+                        }
+                        strMainNumber1 = 0;
+                    }
+                    else {
+                        nForSave1 = strMainNumber1;
+                        strMainNumber1 = 0;
+                    }
+                }
+                else {
+                    if (strMainNumber2 == 0) {
+                        char* lastSlash = strrchr(workingDir2, '\\');
+                        if (lastSlash != NULL) {
+                            *lastSlash = '\0';
+                        }
+                        strMainNumber2 = 0;
+                    }
+                    else {
+                        nForSave2 = strMainNumber2;
+                        strMainNumber2 = 0;
+                    }
+                }
+                break;
+            case 9: // Tab
+                currentWindow = (currentWindow == 1) ? 2 : 1;
+                break;
+            }
+        }
+
+        // SHIFT + F4
+        if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000)) {
+            if (currentWindow == 1)
+                createFile(workingDir1);
+            else
+                createFile(workingDir2);
+        }
+
+        // Корректировка индексов
+        if (strMainNumber1 < 0) strMainNumber1 = 0;
+        if (strMainNumber2 < 0) strMainNumber2 = 0;
+        if (strMainNumber1 >= maxFiles && maxFiles > 0) strMainNumber1 = maxFiles - 1;
+        if (strMainNumber2 >= maxFiles && maxFiles > 0) strMainNumber2 = maxFiles - 1;
+
+        if (statusError == -1) break;
+        system("cls");
     }
 
     return 0;
