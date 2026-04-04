@@ -75,8 +75,6 @@ void copyFile(const char* srcDir, const char* fileName, const char* destDir) {
     fclose(dest);
 }
 
-
-
 int showFile(char* path) {
     FILE* file = nullptr;
     errno_t err = fopen_s(&file, path, "rb");
