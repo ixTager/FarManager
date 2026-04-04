@@ -45,7 +45,6 @@ void showFunction() {
     cout << "F5 - копирование файлов / директории" << endl;
 }
 
-
 void copyFile(const char* srcDir, const char* fileName, const char* destDir) {
     char srcPath[520];
     char destPath[520];
