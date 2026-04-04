@@ -126,6 +126,10 @@
   <ItemGroup>
     <ClCompile Include="FarManager.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fileData.h" />
+    <ClInclude Include="handle.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
