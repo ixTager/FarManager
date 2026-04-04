@@ -37,6 +37,7 @@ char cwd2[260];
 
 char* copyedFileName = nullptr;
 
+
 void showFunction() {
     cout << endl << "F8 - удалить файл / директорию" << endl;
     cout << "F7 - создать директорию" << endl;
