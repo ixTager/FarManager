@@ -10,9 +10,7 @@
 
 using namespace std;
 
-// Переменные для хранения пути
-char cwd[260];
-char newDir[260];
+int maxFiles;
 
 int nForSave1 = -1;
 int nForSave2 = -1;
@@ -20,6 +18,11 @@ int nForDelete1 = -1;
 int nForDelete2 = -1;
 int nForShow1 = -1;
 int nForShow2 = -1;
+int nForCopy1 = -1;
+int nForCopy2 = -1;
+int currentWindow = 1;
+int strMainNumber1 = 0;
+int strMainNumber2 = 0;
 
 int statusError = 0;
 
@@ -28,16 +31,51 @@ char workingDir2[260];
 char oldWorkingDir1[260];
 char oldWorkingDir2[260];
 
+char buffer[1024];
 char cwd1[260];
 char cwd2[260];
 
+char* copyedFileName = nullptr;
 
 void showFunction() {
     cout << endl << "F8 - удалить файл / директорию" << endl;
     cout << "F7 - создать директорию" << endl;
     cout << "SHIFT + F4 - создать файл" << endl;
     cout << "F3 - показ файла в консоли" << endl;
+    cout << "F5 - копирование файлов / директории" << endl;
 }
+
+
+void copyFile(const char* srcDir, const char* fileName, const char* destDir) {
+    char srcPath[520];
+    char destPath[520];
+
+    sprintf_s(srcPath, "%s\\%s", srcDir, fileName);
+    sprintf_s(destPath, "%s\\%s", destDir, fileName);
+
+    FILE* src = nullptr;
+    FILE* dest = nullptr;
+
+    if (fopen_s(&src, srcPath, "rb") != 0 || !src) {
+        printf("Ошибка открытия исходного файла\n");
+        return;
+    }
+
+    if (fopen_s(&dest, destPath, "wb") != 0 || !dest) {
+        printf("Ошибка создания файла назначения\n");
+        fclose(src);
+        return;
+    }
+
+    size_t bytesRead;
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        fwrite(buffer, 1, bytesRead, dest);
+    }
+
+    fclose(src);
+    fclose(dest);
+}
+
 
 
 int showFile(char* path) {
@@ -49,7 +87,6 @@ int showFile(char* path) {
         return -1;
     }
     else {
-        char buffer[1024];
         size_t byteRead;
         system("cls");
         while ((byteRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
@@ -110,12 +147,16 @@ int deleteDirectory(char* path) {
 
 void createFile(char* path) {
     char newFile[260];
-
-    printf("Введите имя файла: ");
-    scanf_s("%s", newFile, (unsigned)_countof(newFile));
-
     char fullPath[520];
-    sprintf_s(fullPath, "%s\\%s", path, newFile);
+
+    if (copyedFileName != nullptr) {
+        sprintf_s(fullPath, "%s\\%s", path, copyedFileName);
+    }
+    else {
+        printf("Введите имя файла: ");
+        scanf_s("%s", newFile, (unsigned)_countof(newFile));
+        sprintf_s(fullPath, "%s\\%s", path, newFile);
+    }
 
     FILE* file = nullptr;
     errno_t err = fopen_s(&file, fullPath, "w");
@@ -123,6 +164,10 @@ void createFile(char* path) {
     if (err != 0 || !file) {
         printf("Ошибка создания файла\n");
         return;
+    }
+    else if (copyedFileName != nullptr) {
+        fwrite(&buffer, sizeof(char[1024]), sizeof(buffer) / sizeof(buffer[0]), file);
+        copyedFileName = nullptr;
     }
 
     fclose(file);
@@ -237,6 +282,9 @@ int openDirs(int strMain, int currentWindow) {
                     deleteDirectory(fullPath);
                     nForDelete1 = -1;
                 }
+                else if (strDirNumber == nForCopy1) {
+                    
+                }
             }
             else {
                 if (strDirNumber == nForSave2) {
@@ -247,6 +295,9 @@ int openDirs(int strMain, int currentWindow) {
                     sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
                     deleteDirectory(fullPath);
                     nForDelete2 = -1;
+                }
+                else if (strDirNumber == nForCopy2) {
+                    
                 }
             }
         }
@@ -262,6 +313,15 @@ int openDirs(int strMain, int currentWindow) {
                     statusError = showFile(fullPath);
                     nForShow1 = -1;
                 }
+                else if (strDirNumber == nForCopy1) {
+                    copyFile(workingDir1, findData1.cFileName, workingDir2);
+                    nForCopy1 = -1;
+                    openDirs(strMainNumber2, 2);
+                }
+
+                if (copyedFileName == findData1.cFileName) {
+                    createFile(workingDir1);
+                }
             }
             else {
                 if (strDirNumber == nForDelete2) {
@@ -274,6 +334,17 @@ int openDirs(int strMain, int currentWindow) {
                     statusError = showFile(fullPath);
                     nForShow2 = -1;
                 }
+
+                else if (strDirNumber == nForCopy2) {
+                    copyFile(workingDir1, findData1.cFileName, workingDir2);
+                    nForCopy1 = -1;
+                    openDirs(strMainNumber2, 2);
+                }
+
+                if (copyedFileName == findData1.cFileName) {
+                    createFile(workingDir2);
+                }
+
             }
         }
 
@@ -300,13 +371,8 @@ int openDirs(int strMain, int currentWindow) {
     return strDirNumber;
 }
 int main() {
-    int maxFiles;
     int breakerMain = 1;
-    int strMainNumber1 = 0;
-    int strMainNumber2 = 0;
-    int currentWindow = 1;
 
-    // Инициализация путей
     _getcwd(workingDir1, 260);
     strcpy_s(workingDir2, workingDir1);
 
@@ -361,6 +427,14 @@ int main() {
                 else {
                     if (strMainNumber2 > 0)
                         nForShow2 = strMainNumber2;
+                }
+                break;
+            case 63: // F5
+                if (currentWindow == 1) {
+                    if (strMainNumber1 > 0) nForCopy1 = strMainNumber1;
+                }
+                else {
+                    if (strMainNumber2 > 0) nForCopy2 = strMainNumber2;
                 }
                 break;
             }
