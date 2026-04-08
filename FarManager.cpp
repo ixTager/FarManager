@@ -10,7 +10,8 @@
 
 using namespace std;
 
-int maxFiles;
+int maxFiles1 = 0;
+int maxFiles2 = 0;
 
 int nForSave1 = -1;
 int nForSave2 = -1;
@@ -36,7 +37,6 @@ char cwd1[260];
 char cwd2[260];
 
 char* copyedFileName = nullptr;
-
 
 void showFunction() {
     cout << endl << "F8 - удалить файл / директорию" << endl;
@@ -270,81 +270,82 @@ int openDirs(int strMain, int currentWindow) {
 
         // Обработка операций с файлами/папками
         if (hasNext1 && (findData1.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            if (currentWindow == 1) {
-                if (strDirNumber == nForSave1) {
-                    sprintf_s(workingDir1, "%s\\%s", workingDir1, findData1.cFileName);
-                    nForSave1 = -1;
-                }
-                else if (strDirNumber == nForDelete1) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
-                    deleteDirectory(fullPath);
-                    nForDelete1 = -1;
-                }
-                else if (strDirNumber == nForCopy1) {
-                    
-                }
+            if (strDirNumber == nForSave1) {
+                sprintf_s(workingDir1, "%s\\%s", workingDir1, findData1.cFileName);
+                nForSave1 = -1;
             }
-            else {
-                if (strDirNumber == nForSave2) {
-                    sprintf_s(workingDir2, "%s\\%s", workingDir2, findData2.cFileName);
-                    nForSave2 = -1;
-                }
-                else if (strDirNumber == nForDelete2) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
-                    deleteDirectory(fullPath);
-                    nForDelete2 = -1;
-                }
-                else if (strDirNumber == nForCopy2) {
-                    
-                }
+            else if (strDirNumber == nForDelete1) {
+                sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                deleteDirectory(fullPath);
+                nForDelete1 = -1;
             }
+            else if (strDirNumber == nForCopy1) {
+                    
+            }
+            
         }
         else if (hasNext1) {
-            if (currentWindow == 1) {
-                if (strDirNumber == nForDelete1) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
-                    statusError = deleteFile(fullPath);
-                    nForDelete1 = -1;
-                }
-                else if (strDirNumber == nForShow1) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
-                    statusError = showFile(fullPath);
-                    nForShow1 = -1;
-                }
-                else if (strDirNumber == nForCopy1) {
-                    copyFile(workingDir1, findData1.cFileName, workingDir2);
-                    nForCopy1 = -1;
-                    openDirs(strMainNumber2, 2);
-                }
-
-                if (copyedFileName == findData1.cFileName) {
-                    createFile(workingDir1);
-                }
+            if (strDirNumber == nForDelete1) {
+                sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                statusError = deleteFile(fullPath);
+                nForDelete1 = -1;
             }
-            else {
-                if (strDirNumber == nForDelete2) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
-                    deleteFile(fullPath);
-                    nForDelete2 = -1;
-                }
-                else if (strDirNumber == nForShow2) {
-                    sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
-                    statusError = showFile(fullPath);
-                    nForShow2 = -1;
-                }
+            else if (strDirNumber == nForShow1) {
+                sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
+                statusError = showFile(fullPath);
+                nForShow1 = -1;
+            }
+            else if (strDirNumber == nForCopy1) {
+                copyFile(workingDir1, findData1.cFileName, workingDir2);
+                nForCopy1 = -1;
+                openDirs(strMainNumber2, 2);
+            }
 
-                else if (strDirNumber == nForCopy2) {
-                    copyFile(workingDir1, findData1.cFileName, workingDir2);
-                    nForCopy1 = -1;
-                    openDirs(strMainNumber2, 2);
-                }
-
-                if (copyedFileName == findData1.cFileName) {
-                    createFile(workingDir2);
-                }
-
+            if (copyedFileName == findData1.cFileName) {
+                createFile(workingDir2);
+                updateCurrentDirectory(2);
             }
         }
+
+        if (hasNext2 && (findData2.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+            if (strDirNumber == nForSave2) {
+                sprintf_s(workingDir2, "%s\\%s", workingDir2, findData2.cFileName);
+                nForSave2 = -1;
+            }
+            else if (strDirNumber == nForDelete2) {
+                sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                deleteDirectory(fullPath);
+                nForDelete2 = -1;
+            }
+            else if (strDirNumber == nForCopy2) {
+
+            }
+
+        }
+        else if (hasNext2) {
+            if (strDirNumber == nForDelete2) {
+                sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                statusError = deleteFile(fullPath);
+                nForDelete2 = -1;
+            }
+            else if (strDirNumber == nForShow2) {
+                sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
+                statusError = showFile(fullPath);
+                nForShow2 = -1;
+            }
+            else if (strDirNumber == nForCopy2) {
+                copyFile(workingDir2, findData2.cFileName, workingDir1);
+                nForCopy2 = -1;
+                openDirs(strMainNumber2, 1);
+            }
+
+            if (copyedFileName == findData2.cFileName) {
+                createFile(workingDir1);
+                updateCurrentDirectory(1);
+            }
+
+        }
+
 
         // Вывод с подсветкой выбранной строки
         if (strDirNumber == strMain) {
@@ -357,6 +358,9 @@ int openDirs(int strMain, int currentWindow) {
             printf("%-50s | %-50s\n", name1, name2);
         }
 
+        if (currentWindow == 1) maxFiles1++;
+        else maxFiles2++;
+
         strDirNumber++;
 
         if (hasNext1) hasNext1 = FindNextFileA(hFind1, &findData1);
@@ -366,7 +370,9 @@ int openDirs(int strMain, int currentWindow) {
     FindClose(hFind1);
     FindClose(hFind2);
     showFunction();
-    return strDirNumber;
+    if (currentWindow == 1) maxFiles1 = strDirNumber;
+    else maxFiles2 = strDirNumber;
+    return 1;
 }
 int main() {
     int breakerMain = 1;
@@ -375,10 +381,8 @@ int main() {
     strcpy_s(workingDir2, workingDir1);
 
     while (breakerMain) {
-        if (currentWindow == 1)
-            maxFiles = openDirs(strMainNumber1, currentWindow);
-        else
-            maxFiles = openDirs(strMainNumber2, currentWindow);
+        if (currentWindow == 1) statusError = openDirs(strMainNumber1, currentWindow);
+        else statusError = openDirs(strMainNumber2, currentWindow);
 
         int key = _getch();
 
@@ -445,16 +449,17 @@ int main() {
             case 13: // Enter
                 if (currentWindow == 1) {
                     if (strMainNumber1 == 0) {
-                        // Переход на уровень выше
                         char* lastSlash = strrchr(workingDir1, '\\');
                         if (lastSlash != NULL) {
                             *lastSlash = '\0';
                         }
                         strMainNumber1 = 0;
+                        maxFiles1 = 0;
                     }
                     else {
                         nForSave1 = strMainNumber1;
                         strMainNumber1 = 0;
+                        maxFiles1 = 0;
                     }
                 }
                 else {
@@ -464,15 +469,17 @@ int main() {
                             *lastSlash = '\0';
                         }
                         strMainNumber2 = 0;
+                        maxFiles2 = 0;
                     }
                     else {
                         nForSave2 = strMainNumber2;
                         strMainNumber2 = 0;
+                        maxFiles2 = 0;
                     }
                 }
                 break;
             case 9: // Tab
-                currentWindow = (currentWindow == 1) ? 2 : 1;
+                currentWindow = currentWindow == 1 ? 2 : 1;
                 break;
             }
         }
@@ -488,8 +495,8 @@ int main() {
         // Корректировка индексов
         if (strMainNumber1 < 0) strMainNumber1 = 0;
         if (strMainNumber2 < 0) strMainNumber2 = 0;
-        if (strMainNumber1 >= maxFiles && maxFiles > 0) strMainNumber1 = maxFiles - 1;
-        if (strMainNumber2 >= maxFiles && maxFiles > 0) strMainNumber2 = maxFiles - 1;
+        if (strMainNumber1 >= maxFiles1 && maxFiles1 > 0) strMainNumber1 = maxFiles1 - 1;
+        if (strMainNumber2 >= maxFiles2 && maxFiles2 > 0) strMainNumber2 = maxFiles2 - 1;
 
         if (statusError == -1) break;
         system("cls");
