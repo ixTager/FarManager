@@ -40,7 +40,7 @@ char buffer[1024];
 char cwd1[260];
 char cwd2[260];
 
-char* copyedFileName = nullptr;
+char copyedFileName[100] = "";
 
 void showFunction() {
     cout << endl << "F8 - удалить файл / директорию" << endl;
@@ -81,6 +81,7 @@ void copyFile(const char* srcDir, const char* fileName, const char* destDir, int
 
     copyedStatus = 1;
     currentWindow = currentWindow == 1 ? 2 : 1;
+    *copyedFileName = *fileName;
 }
 
 int showFile(char* path) {
@@ -157,7 +158,7 @@ void createFile(char* path) {
     char newFile[260];
     char fullPath[520];
 
-    if (copyedFileName != nullptr) {
+    if (copyedFileName != "") {
         sprintf_s(fullPath, "%s\\%s", path, copyedFileName);
     }
     else {
@@ -173,9 +174,9 @@ void createFile(char* path) {
         printf("Ошибка создания файла\n");
         return;
     }
-    else if (copyedFileName != nullptr) {
+    else if (copyedFileName != "") {
         fwrite(&buffer, sizeof(char[1024]), sizeof(buffer) / sizeof(buffer[0]), file);
-        copyedFileName = nullptr;
+        strcpy_s(copyedFileName, "");
     }
 
     fclose(file);
@@ -315,10 +316,6 @@ int openDirs(int strMain, int currentWindow) {
                 if (copyedStatus == 1) break;
             }
 
-            if (copyedFileName == findData1.cFileName) {
-                createFile(workingDir2);
-                updateCurrentDirectory(2);
-            }
         }
 
         if (hasNext2 && (findData2.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
@@ -356,11 +353,6 @@ int openDirs(int strMain, int currentWindow) {
                 copyFile(workingDir2, findData2.cFileName, workingDir1, currentWindow);
                 nForCopy2 = -1;
                 if (copyedStatus == 1) break;
-            }
-
-            if (copyedFileName == findData2.cFileName) {
-                createFile(workingDir1);
-                updateCurrentDirectory(1);
             }
 
         }
