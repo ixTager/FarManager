@@ -26,6 +26,10 @@ int strMainNumber1 = 0;
 int strMainNumber2 = 0;
 
 int statusError = 0;
+int deletedStatus = 0;
+int goToStatus = 0;
+int copyedStatus = 0;
+int readedStatus = 0;
 
 char workingDir1[260];
 char workingDir2[260];
@@ -46,7 +50,7 @@ void showFunction() {
     cout << "F5 - копирование файлов / директории" << endl;
 }
 
-void copyFile(const char* srcDir, const char* fileName, const char* destDir) {
+void copyFile(const char* srcDir, const char* fileName, const char* destDir, int curWindow) {
     char srcPath[520];
     char destPath[520];
 
@@ -74,6 +78,9 @@ void copyFile(const char* srcDir, const char* fileName, const char* destDir) {
 
     fclose(src);
     fclose(dest);
+
+    copyedStatus = 1;
+    currentWindow = currentWindow == 1 ? 2 : 1;
 }
 
 int showFile(char* path) {
@@ -96,11 +103,14 @@ int showFile(char* path) {
         while (key != 27) {
             key = _getch();
         }
+        nForShow1 = -1;
+        readedStatus = 1;
         return 0;
     }
 }
 int deleteFile(char* path) {
-    return DeleteFileA(path);
+    int deleteStatus = DeleteFileA(path);
+    return deleteStatus;
 }
 
 int deleteDirectory(char* path) {
@@ -228,7 +238,7 @@ int openDirs(int strMain, int currentWindow) {
     }
 
     // Выводим заголовок с путями
-    printf("%.50s | %.50s\n", workingDir1, workingDir2);
+    printf("%-50s | %-50s\n", workingDir1, workingDir2);
 
     // Обработка ".." с индексом 0
     if (currentWindow == 1 && strDirNumber == strMain)
@@ -273,12 +283,15 @@ int openDirs(int strMain, int currentWindow) {
             if (strDirNumber == nForSave1) {
                 sprintf_s(workingDir1, "%s\\%s", workingDir1, findData1.cFileName);
                 nForSave1 = -1;
+                goToStatus = 1;
             }
             else if (strDirNumber == nForDelete1) {
                 sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                 deleteDirectory(fullPath);
                 nForDelete1 = -1;
+                deletedStatus = 1;
             }
+            // Реализовать копирование директории
             else if (strDirNumber == nForCopy1) {
                     
             }
@@ -289,16 +302,17 @@ int openDirs(int strMain, int currentWindow) {
                 sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                 statusError = deleteFile(fullPath);
                 nForDelete1 = -1;
+                deletedStatus = 1;
             }
             else if (strDirNumber == nForShow1) {
                 sprintf_s(fullPath, "%s\\%s", workingDir1, findData1.cFileName);
                 statusError = showFile(fullPath);
-                nForShow1 = -1;
+                if (readedStatus == 1) break;
             }
             else if (strDirNumber == nForCopy1) {
-                copyFile(workingDir1, findData1.cFileName, workingDir2);
+                copyFile(workingDir1, findData1.cFileName, workingDir2, currentWindow);
                 nForCopy1 = -1;
-                openDirs(strMainNumber2, 2);
+                if (copyedStatus == 1) break;
             }
 
             if (copyedFileName == findData1.cFileName) {
@@ -311,12 +325,15 @@ int openDirs(int strMain, int currentWindow) {
             if (strDirNumber == nForSave2) {
                 sprintf_s(workingDir2, "%s\\%s", workingDir2, findData2.cFileName);
                 nForSave2 = -1;
+                goToStatus = 1;
             }
             else if (strDirNumber == nForDelete2) {
                 sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
                 deleteDirectory(fullPath);
                 nForDelete2 = -1;
+                deletedStatus = 1;
             }
+            // Реализовать копирование директории
             else if (strDirNumber == nForCopy2) {
 
             }
@@ -327,16 +344,18 @@ int openDirs(int strMain, int currentWindow) {
                 sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
                 statusError = deleteFile(fullPath);
                 nForDelete2 = -1;
+                deletedStatus = 1;
             }
             else if (strDirNumber == nForShow2) {
                 sprintf_s(fullPath, "%s\\%s", workingDir2, findData2.cFileName);
                 statusError = showFile(fullPath);
                 nForShow2 = -1;
+                if (readedStatus == 1) break;
             }
             else if (strDirNumber == nForCopy2) {
-                copyFile(workingDir2, findData2.cFileName, workingDir1);
+                copyFile(workingDir2, findData2.cFileName, workingDir1, currentWindow);
                 nForCopy2 = -1;
-                openDirs(strMainNumber2, 1);
+                if (copyedStatus == 1) break;
             }
 
             if (copyedFileName == findData2.cFileName) {
@@ -350,9 +369,9 @@ int openDirs(int strMain, int currentWindow) {
         // Вывод с подсветкой выбранной строки
         if (strDirNumber == strMain) {
             if (currentWindow == 1)
-                printf("%-47s\t<-- | %-50s\n", name1, name2);
+                printf("%-47s<-- | %-50s\n", name1, name2);
             else
-                printf("%-50s | %-47s\t<--\n", name1, name2);
+                printf("%-50s | %-47s<--\n", name1, name2);
         }
         else {
             printf("%-50s | %-50s\n", name1, name2);
@@ -383,6 +402,27 @@ int main() {
     while (breakerMain) {
         if (currentWindow == 1) statusError = openDirs(strMainNumber1, currentWindow);
         else statusError = openDirs(strMainNumber2, currentWindow);
+        
+        if (deletedStatus == 1) {
+            deletedStatus = 0;
+            system("cls");
+            continue;
+        }
+        if (goToStatus == 1) {
+            goToStatus = 0;
+            system("cls");
+            continue;
+        }
+        if (readedStatus == 1) {
+            readedStatus = 0;
+            system("cls");
+            continue;
+        }
+        if (copyedStatus == 1) {
+            copyedStatus = 0;
+            system("cls");
+            continue;
+        }
 
         int key = _getch();
 
