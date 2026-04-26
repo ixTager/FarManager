@@ -41,13 +41,15 @@ char cwd1[260];
 char cwd2[260];
 
 char copyedFileName[100] = "";
+char** pathsToCopy = new char*[1000] {};
+int i = -1;
 
 void showFunction() {
-    cout << endl << "F8 - удалить файл / директорию" << endl;
-    cout << "F7 - создать директорию" << endl;
-    cout << "SHIFT + F4 - создать файл" << endl;
-    cout << "F3 - показ файла в консоли" << endl;
-    cout << "F5 - копирование файлов / директории" << endl;
+    cout << endl << "F8 - delete file / directory" << endl;
+    cout << "F7 - create directory" << endl;
+    cout << "SHIFT + F4 - create file" << endl;
+    cout << "F3 - show file contents" << endl;
+    cout << "F5 - copy file / directory" << endl;
 }
 
 void copyFile(const char* srcDir, const char* fileName, const char* destDir, int curWindow) {
@@ -61,12 +63,12 @@ void copyFile(const char* srcDir, const char* fileName, const char* destDir, int
     FILE* dest = nullptr;
 
     if (fopen_s(&src, srcPath, "rb") != 0 || !src) {
-        printf("Ошибка открытия исходного файла\n");
+        printf("Error opening source file\n");
         return;
     }
 
     if (fopen_s(&dest, destPath, "wb") != 0 || !dest) {
-        printf("Ошибка создания файла назначения\n");
+        printf("Error creating destination file\n");
         fclose(src);
         return;
     }
@@ -80,16 +82,63 @@ void copyFile(const char* srcDir, const char* fileName, const char* destDir, int
     fclose(dest);
 
     copyedStatus = 1;
-    currentWindow = currentWindow == 1 ? 2 : 1;
-    *copyedFileName = *fileName;
+    strcpy_s(copyedFileName, fileName);
 }
+
+int copyDirectory(const char* srcDir, const char* destDir) {
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind;
+
+    char searchPath[520];
+    sprintf_s(searchPath, "%s\\*", srcDir);
+
+    hFind = FindFirstFileA(searchPath, &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        printf("Error opening directory\n");
+        return -1;
+    }
+
+    // Создаём папку назначения
+    if (!CreateDirectoryA(destDir, NULL)) {
+        if (GetLastError() != ERROR_ALREADY_EXISTS) {
+            printf("Error creating folder\n");
+            return -1;
+        }
+    }
+
+    do {
+        if (strcmp(findData.cFileName, ".") == 0 ||
+            strcmp(findData.cFileName, "..") == 0) {
+            continue;
+        }
+
+        char srcPath[520];
+        char destPath[520];
+
+        sprintf_s(srcPath, "%s\\%s", srcDir, findData.cFileName);
+        sprintf_s(destPath, "%s\\%s", destDir, findData.cFileName);
+
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            copyDirectory(srcPath, destPath);
+        }
+        else {
+            copyFile(srcDir, findData.cFileName, destDir, currentWindow);
+        }
+
+    } while (FindNextFileA(hFind, &findData));
+
+    FindClose(hFind);
+    return 0;
+}
+
+
 
 int showFile(char* path) {
     FILE* file = nullptr;
     errno_t err = fopen_s(&file, path, "rb");
 
     if (err != 0 || !file) {
-        printf("Ошбика показа файла");
+        printf("File display error");
         return -1;
     }
     else {
@@ -99,7 +148,7 @@ int showFile(char* path) {
             fwrite(buffer, 1, byteRead, stdout);
         }
         fclose(file);
-        printf("\nНажмите ESC, чтобы выйти из файла..");
+        printf("\nPress ESC to exit the file...");
         int key = _getch();
         while (key != 27) {
             key = _getch();
@@ -124,7 +173,7 @@ int deleteDirectory(char* path) {
     hFind = FindFirstFileA(searchedPath, &findData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        cout << "Ошибка открытия директории";
+        cout << "Error opening directory";
         return -1;
     }
     else {
@@ -158,11 +207,11 @@ void createFile(char* path) {
     char newFile[260];
     char fullPath[520];
 
-    if (copyedFileName != "") {
+    if (strlen(copyedFileName) > 0) {
         sprintf_s(fullPath, "%s\\%s", path, copyedFileName);
     }
     else {
-        printf("Введите имя файла: ");
+        printf("\nEnter file name: ");
         scanf_s("%s", newFile, (unsigned)_countof(newFile));
         sprintf_s(fullPath, "%s\\%s", path, newFile);
     }
@@ -171,11 +220,11 @@ void createFile(char* path) {
     errno_t err = fopen_s(&file, fullPath, "w");
 
     if (err != 0 || !file) {
-        printf("Ошибка создания файла\n");
+        printf("Error creating file\n");
         return;
     }
-    else if (copyedFileName != "") {
-        fwrite(&buffer, sizeof(char[1024]), sizeof(buffer) / sizeof(buffer[0]), file);
+    else if (strlen(copyedFileName) > 0) {
+        fwrite(buffer, 1, sizeof(buffer), file);
         strcpy_s(copyedFileName, "");
     }
 
@@ -183,9 +232,9 @@ void createFile(char* path) {
 }
 
 int createFolder(char* path) {
-    // Ввод имени для папки
     char newFolder[260];
-    printf("\nВведите название для папки: ");
+
+    printf("\nEnter a name for the folder: ");
     scanf_s("%s", newFolder, (unsigned)_countof(newFolder));
 
     char fullPath[520];
@@ -193,7 +242,7 @@ int createFolder(char* path) {
 
     int result = _mkdir(fullPath);
     if (result == -1) {
-        cout << "Ошбика при создании директории" << endl;
+        cout << "Error while creating directory" << endl;
     }
     return result;
 }
@@ -209,11 +258,13 @@ void updateCurrentDirectory(int window) {
     }
 }
 
-// Исправленная функция openDirs
-int openDirs(int strMain, int currentWindow) {
+int showDirectories(int strMain, int currentWindow) {
     char fullPath[520];
     char path1[520];
     char path2[520];
+
+    int hasNext1 = 1;
+    int hasNext2 = 1;
 
     int strDirNumber = 0;
 
@@ -223,7 +274,6 @@ int openDirs(int strMain, int currentWindow) {
     HANDLE hFind1;
     HANDLE hFind2;
 
-    // Обновляем пути перед отображением
     updateCurrentDirectory(1);
     updateCurrentDirectory(2);
 
@@ -234,42 +284,36 @@ int openDirs(int strMain, int currentWindow) {
     hFind2 = FindFirstFileA(path2, &findData2);
 
     if (hFind1 == INVALID_HANDLE_VALUE || hFind2 == INVALID_HANDLE_VALUE) {
-        cout << "Ошибка открытия директории";
+        cout << "Error opening directory";
         return 0;
     }
 
-    // Выводим заголовок с путями
     printf("%-50s | %-50s\n", workingDir1, workingDir2);
 
-    // Обработка ".." с индексом 0
     if (currentWindow == 1 && strDirNumber == strMain)
         printf("%-47s<-- | %-50s\n", "..", "..");
     else if (currentWindow == 2 && strDirNumber == strMain)
         printf("%-50s | %-47s<--\n", "..", "..");
     else
         printf("%-50s | %-50s\n", "..", "..");
+
     strDirNumber++;
 
-    int hasNext1 = 1;
-    int hasNext2 = 1;
-
     while (hasNext1 || hasNext2) {
-        // Пропускаем . и .. для первого каталога
+        char name1[100] = "";
+        char name2[100] = "";
+
         if (hasNext1 && (strcmp(findData1.cFileName, ".") == 0 ||
             strcmp(findData1.cFileName, "..") == 0)) {
             hasNext1 = FindNextFileA(hFind1, &findData1);
             continue;
         }
 
-        // Пропускаем . и .. для второго каталога
         if (hasNext2 && (strcmp(findData2.cFileName, ".") == 0 ||
             strcmp(findData2.cFileName, "..") == 0)) {
             hasNext2 = FindNextFileA(hFind2, &findData2);
             continue;
         }
-
-        char name1[100] = "";
-        char name2[100] = "";
 
         if (hasNext1) {
             strcpy_s(name1, findData1.cFileName);
@@ -279,7 +323,6 @@ int openDirs(int strMain, int currentWindow) {
             strcpy_s(name2, findData2.cFileName);
         }
 
-        // Обработка операций с файлами/папками
         if (hasNext1 && (findData1.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
             if (strDirNumber == nForSave1) {
                 sprintf_s(workingDir1, "%s\\%s", workingDir1, findData1.cFileName);
@@ -292,9 +335,19 @@ int openDirs(int strMain, int currentWindow) {
                 nForDelete1 = -1;
                 deletedStatus = 1;
             }
-            // Реализовать копирование директории
+            
             else if (strDirNumber == nForCopy1) {
-                    
+                char srcPath[520];
+                char destPath[520];
+
+                sprintf_s(srcPath, "%s\\%s", workingDir1, findData1.cFileName);
+                sprintf_s(destPath, "%s\\%s", workingDir2, findData1.cFileName);
+
+                copyDirectory(srcPath, destPath);
+
+                nForCopy1 = -1;
+                copyedStatus = 1;
+                break;
             }
             
         }
@@ -330,9 +383,19 @@ int openDirs(int strMain, int currentWindow) {
                 nForDelete2 = -1;
                 deletedStatus = 1;
             }
-            // Реализовать копирование директории
-            else if (strDirNumber == nForCopy2) {
 
+            else if (strDirNumber == nForCopy2) {
+                char srcPath[520];
+                char destPath[520];
+
+                sprintf_s(srcPath, "%s\\%s", workingDir2, findData2.cFileName);
+                sprintf_s(destPath, "%s\\%s", workingDir1, findData2.cFileName);
+
+                copyDirectory(srcPath, destPath);
+
+                nForCopy2 = -1;
+                copyedStatus = 1;
+                break;
             }
 
         }
@@ -358,7 +421,6 @@ int openDirs(int strMain, int currentWindow) {
         }
 
 
-        // Вывод с подсветкой выбранной строки
         if (strDirNumber == strMain) {
             if (currentWindow == 1)
                 printf("%-47s<-- | %-50s\n", name1, name2);
@@ -392,8 +454,8 @@ int main() {
     strcpy_s(workingDir2, workingDir1);
 
     while (breakerMain) {
-        if (currentWindow == 1) statusError = openDirs(strMainNumber1, currentWindow);
-        else statusError = openDirs(strMainNumber2, currentWindow);
+        if (currentWindow == 1) statusError = showDirectories(strMainNumber1, currentWindow);
+        else statusError = showDirectories(strMainNumber2, currentWindow);
         
         if (deletedStatus == 1) {
             deletedStatus = 0;
